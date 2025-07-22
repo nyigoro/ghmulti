@@ -1,11 +1,9 @@
-# ghmulti/command/use.py
-
 import os
 import json
 import sys
+import click
 
 CONFIG_PATH = os.path.expanduser("~/.ghmulti.json")
-
 
 def load_config():
     if not os.path.exists(CONFIG_PATH):
@@ -14,13 +12,11 @@ def load_config():
     with open(CONFIG_PATH, "r") as f:
         return json.load(f)
 
-
 def save_config(config):
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)
 
-
-def use_account(account_name):
+def switch_account_logic(account_name):
     config = load_config()
 
     accounts = config.get("accounts", [])
@@ -33,3 +29,9 @@ def use_account(account_name):
     config["active"] = account_name
     save_config(config)
     print(f"✅ Switched active account to: {account_name}")
+
+@click.command(name="use")
+@click.argument("account_name")
+def use_account(account_name):
+    """Switch the active GitHub account."""
+    switch_account_logic(account_name)

@@ -1,0 +1,13 @@
+[project]
+name = "ghmulti"
+version = "0.1.0"
+description = "Manage multiple GitHub accounts"
+authors = [{ name = "nyigoro", email = "nyigoro@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "click"
+]
+
+[project.scripts]
+ghmulti = "ghmulti.__main__:cli"

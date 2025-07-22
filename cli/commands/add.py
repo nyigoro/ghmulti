@@ -1,32 +1,43 @@
-# cli/commands/add.py
-from cli.config import load_config, save_config
+import os
+import json
+import click
 
-def run():
-    name = input("Account name (e.g. personal, work): ").strip()
-    email = input("Git email: ").strip()
-    auth_type = input("Auth type (ssh/token): ").strip().lower()
+CONFIG_PATH = os.path.expanduser("~/.ghmulti.json")
 
-    auth = {}
-    if auth_type == "ssh":
-        key = input("Path to SSH key (e.g. ~/.ssh/id_rsa): ").strip()
-        auth = {"type": "ssh", "keyPath": key}
-    elif auth_type == "token":
-        token = input("GitHub token (PAT): ").strip()
-        auth = {"type": "token", "token": token}
-    else:
-        print("❌ Unsupported auth type.")
+@click.command(name="add")
+def add_account():
+    """Add a new GitHub account."""
+    name = input("Account name: ").strip()
+    username = input("GitHub username: ").strip()
+    token = input("Personal access token: ").strip()
+
+    if not name or not username or not token:
+        print("❌ All fields are required.")
         return
 
-    config = load_config()
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
+            config = json.load(f)
 
-    if any(acc["name"] == name for acc in config["accounts"]):
+    if "accounts" not in config:
+        config["accounts"] = []
+
+    # Check if account with same name exists
+    if any(a["name"] == name for a in config["accounts"]):
         print(f"❌ Account '{name}' already exists.")
         return
 
     config["accounts"].append({
         "name": name,
-        "email": email,
-        "auth": auth
+        "username": username,
+        "token": token
     })
-    save_config(config)
-    print(f"✅ Added account '{name}'")
+
+    if "active" not in config:
+        config["active"] = name
+
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+
+    print(f"✅ Added account '{name}' and saved.")

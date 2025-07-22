@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+cli/config.py
+ghmulti/__init__.py
+ghmulti/__main__.py
+ghmulti.egg-info/PKG-INFO
+ghmulti.egg-info/SOURCES.txt
+ghmulti.egg-info/dependency_links.txt
+ghmulti.egg-info/entry_points.txt
+ghmulti.egg-info/requires.txt
+ghmulti.egg-info/top_level.txt
