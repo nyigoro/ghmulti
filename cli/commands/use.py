@@ -18,22 +18,46 @@ def switch_account_logic(account_name):
     config["active"] = account_name
     save_config(config)
     
-    token = get_token(match["username"])
-    
     # Configure git user
     subprocess.run(["git", "config", "--global", "user.name", match["username"]], check=True)
     subprocess.run(["git", "config", "--global", "user.email", f'{match["username"]}@users.noreply.github.com'], check=True)
 
-    # Configure git credential helper to use the token
-    # This is a simplified approach. For more robust solutions, especially on multi-user systems,
-    # consider more advanced credential helper configurations.
-    credential_helper_command = f"store --file={os.path.expanduser('~/.git-credentials')}"
-    subprocess.run(["git", "config", "--global", "credential.helper", credential_helper_command], check=True)
-    
-    # Write the token to the credential file
-    # Note: This will overwrite the file with the current user's token.
-    with open(os.path.expanduser("~/.git-credentials"), "w") as f:
-        f.write(f"https://{match['username']}:{token}@github.com")
+    # Configure GPG signing key if provided
+    gpg_key_id = match.get("gpg_key_id")
+    if gpg_key_id:
+        subprocess.run(["git", "config", "--global", "user.signingkey", gpg_key_id], check=True)
+        click.echo(f"✅ Git GPG signing key set to: {gpg_key_id}")
+    else:
+        # Unset if not provided
+        subprocess.run(["git", "config", "--global", "--unset-all", "user.signingkey"], check=False) # check=False because it might not exist
+        click.echo("ℹ️  Git GPG signing key unset.")
+
+    # Configure SSH command if SSH key path is provided
+    ssh_key_path = match.get("ssh_key_path")
+    if ssh_key_path:
+        # Use ssh-agent for better security and management
+        ssh_command = f"ssh -i {os.path.expanduser(ssh_key_path)}"
+        subprocess.run(["git", "config", "--global", "core.sshCommand", ssh_command], check=True)
+        click.echo(f"✅ Git SSH command set to: {ssh_command}")
+    else:
+        # Unset if not provided
+        subprocess.run(["git", "config", "--global", "--unset-all", "core.sshCommand"], check=False)
+        click.echo("ℹ️  Git SSH command unset.")
+
+    # Configure git credential helper based on token availability
+    token = get_token(match["username"])
+    if token:
+        credential_helper_command = f"store --file={os.path.expanduser('~/.git-credentials')}"
+        subprocess.run(["git", "config", "--global", "credential.helper", credential_helper_command], check=True)
+        with open(os.path.expanduser("~/.git-credentials"), "w") as f:
+            f.write(f"https://{match['username']}:{token}@github.com")
+        click.echo("✅ Git credential helper configured for token.")
+    else:
+        # If no token, ensure credential helper is not set to store, rely on SSH
+        subprocess.run(["git", "config", "--global", "--unset-all", "credential.helper"], check=False)
+        if os.path.exists(os.path.expanduser("~/.git-credentials")):
+            os.remove(os.path.expanduser("~/.git-credentials"))
+        click.echo("ℹ️  Git credential helper unset (relying on SSH or other methods).")
 
     print(f"✅ Switched active account to: {account_name}")
 
