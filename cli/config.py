@@ -1,6 +1,7 @@
 # cli/config.py
 import os
 import json
+import keyring
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".ghmulti.json"
@@ -21,3 +22,6 @@ def get_active_account():
         if acc["name"] == data["active"]:
             return acc
     return None
+
+def get_token(username):
+    return keyring.get_password("ghmulti", username)

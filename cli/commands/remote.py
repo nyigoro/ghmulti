@@ -8,27 +8,22 @@ def run(cmd):
     if result.returncode != 0:
         sys.exit(result.returncode)
 
-@click.group()
-def cli():
-    """Manage Git remotes by GitHub account."""
+@click.group("remote")
+def remote():
+    """Manage Git remotes per GitHub account."""
     pass
 
-@cli.command("add")
+@remote.command("add")
 @click.option('--account', required=True, help='GitHub account name (e.g., nyigoro)')
-@click.option('--url', required=True, help='Git remote URL (e.g., git@github.com:user/repo.git)')
+@click.option('--url', required=True, help='Remote URL (HTTPS or SSH)')
 def remote_add(account, url):
-    """Add a new Git remote for an account."""
     remote_name = f"origin-{account}"
     print(f"➕ Adding remote '{remote_name}' → {url}")
     run(f"git remote add {remote_name} {url}")
 
-@cli.command("remove")
-@click.option('--account', required=True, help='GitHub account name to remove')
+@remote.command("remove")
+@click.option('--account', required=True, help='GitHub account name')
 def remote_remove(account):
-    """Remove a Git remote for an account."""
     remote_name = f"origin-{account}"
     print(f"❌ Removing remote '{remote_name}'")
     run(f"git remote remove {remote_name}")
-
-if __name__ == "__main__":
-    cli()

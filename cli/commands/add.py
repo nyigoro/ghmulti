@@ -1,6 +1,7 @@
 import os
 import json
 import click
+import keyring
 
 CONFIG_PATH = os.path.expanduser("~/.ghmulti.json")
 
@@ -31,8 +32,9 @@ def add_account():
     config["accounts"].append({
         "name": name,
         "username": username,
-        "token": token
     })
+    
+    keyring.set_password("ghmulti", username, token)
 
     if "active" not in config:
         config["active"] = name

@@ -1,0 +1,41 @@
+{
+    "name": "ghmulti-vscode",
+    "displayName": "ghmulti-vscode",
+    "description": "VS Code extension for ghmulti",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.87.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "ghmulti-vscode.switchAccount",
+                "title": "ghmulti: Switch Account"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "vscode-test"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.87.0",
+        "@types/mocha": "^10.0.6",
+        "@types/node": "18.x",
+        "eslint": "^8.57.0",
+        "typescript": "^5.3.3",
+        "@vscode/test-cli": "^0.0.6",
+        "@vscode/test-electron": "^2.3.9"
+    }
+}
