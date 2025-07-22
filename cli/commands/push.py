@@ -1,11 +1,12 @@
 import subprocess
 import sys
 import click
-from cli.config import get_active_account, get_token
+import os
+from cli.config import get_active_account, get_token, get_linked_account
 
-def run(cmd, env=None):
+def run(cmd, env=None, shell=False):
     print(f"🛠️  Running: {cmd}")
-    result = subprocess.run(cmd, shell=True, env=env)
+    result = subprocess.run(cmd, shell=shell, env=env)
     if result.returncode != 0:
         print("❌ Command failed.")
         sys.exit(result.returncode)
@@ -13,7 +14,8 @@ def run(cmd, env=None):
 @click.command(name="push")
 @click.option('--branch', default='main', help='Branch name to push (default: main)')
 @click.option('--message', help='Commit message if staging and committing before push')
-def push(branch, message):
+@click.option("--remote", default=None, help="Remote name (default: auto-detected or 'origin')")
+def push(branch, message, remote):
     """Push to GitHub using the active account's remote."""
     account = get_active_account()
 
@@ -23,16 +25,40 @@ def push(branch, message):
 
     username = account['username']
     token = get_token(username)
-    remote_name = f"origin-{account['name']}"
 
-    click.echo(f"📤 Pushing as '{username}' to remote '{remote_name}' on branch '{branch}'")
+    # Determine the remote to use
+    actual_remote = remote
+    if not actual_remote:
+        linked_account_name = get_linked_account()
+        if linked_account_name:
+            # Check if a remote named origin-{linked_account_name} exists
+            try:
+                remotes_output = subprocess.check_output(["git", "remote"], stderr=subprocess.PIPE).decode().splitlines()
+                if f"origin-{linked_account_name}" in remotes_output:
+                    actual_remote = f"origin-{linked_account_name}"
+                    click.echo(f"ℹ️  Using linked account remote: {actual_remote}")
+            except subprocess.CalledProcessError:
+                pass # Ignore if git remote fails
+        
+        if not actual_remote:
+            actual_remote = "origin"
+            click.echo(f"ℹ️  Using default remote: {actual_remote}")
+
+    click.echo(f"📤 Pushing as '{username}' to remote '{actual_remote}' on branch '{branch}'")
 
     if message:
         click.echo("📝 Committing changes...")
-        run("git add .")
-        run(f'git commit -m "{message}"')
+        run(["git", "add", "."])
+        run(["git", "commit", "-m", message])
 
-    run(f"git push {remote_name} {branch}", env={"GIT_ASKPASS": "echo", "GIT_USERNAME": username, "GIT_PASSWORD": token})
+    # Use GIT_ASKPASS for token authentication
+    env = os.environ.copy()
+    if token:
+        env["GIT_ASKPASS"] = "echo"
+        env["GIT_USERNAME"] = username
+        env["GIT_PASSWORD"] = token
+
+    run(["git", "push", actual_remote, branch], env=env)
     click.echo("✅ Push successful.")
 
 if __name__ == "__main__":
