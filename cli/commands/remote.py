@@ -1,5 +1,3 @@
-# ghmulti/remote.py
-
 import subprocess
 import sys
 import click
