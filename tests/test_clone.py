@@ -45,14 +45,12 @@ class TestCloneCommand(unittest.TestCase):
             os.remove(self.config_path)
         self.keyring_patch.stop()
 
-    import unittest.mock
-    import unittest.mock
     @patch('subprocess.run')
     @patch('os.chdir')
     def test_clone_without_linking(self, mock_chdir, mock_subprocess_run):
         mock_subprocess_run.return_value = MagicMock(returncode=0) # Mock git clone success
         
-        result = self.runner.invoke(clone_repo, ["https://github.com/test/repo.git"], catch_exceptions=False)
+        result = self.runner.invoke(clone_repo, ["https://github.com/test/repo.git"], input='n\n', catch_exceptions=False)
         
         mock_subprocess_run.assert_any_call(['git', 'clone', 'https://github.com/test/repo.git'], check=True, env=unittest.mock.ANY)
         # Verify env contents if a token is expected (in this case, no token, so just check it's a dict)
@@ -61,7 +59,7 @@ class TestCloneCommand(unittest.TestCase):
 
         self.assertIn("Successfully cloned", result.output)
         self.assertIn("No account specified for linking", result.output)
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, msg=result.output)
 
     @patch('subprocess.run')
     @patch('os.chdir')
@@ -82,7 +80,7 @@ class TestCloneCommand(unittest.TestCase):
         mock_subprocess_run.assert_any_call(['ghmulti', 'link', 'test_account'], check=True)
         self.assertIn("Successfully cloned", result.output)
         self.assertIn("Linking repository to account 'test_account'", result.output)
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, msg=result.output)
 
     @patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, "git clone"))
     @patch('os.chdir')
@@ -113,7 +111,7 @@ class TestCloneCommand(unittest.TestCase):
         mock_subprocess_run.assert_any_call(['ghmulti', 'link', 'test_account'], check=True)
         self.assertIn("Successfully cloned", result.output)
         self.assertIn("Linking repository to globally active account 'test_account'", result.output)
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, msg=result.output)
 
 if __name__ == '__main__':
     unittest.main()

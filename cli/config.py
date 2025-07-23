@@ -1,4 +1,3 @@
-# cli/config.py
 import os
 import json
 import keyring
@@ -17,6 +16,13 @@ def save_config(data):
     with open(CONFIG_PATH, "w") as f:
         json.dump(data, f, indent=2)
 
+def get_active_account_from_global_config():
+    data = load_config()
+    for acc in data["accounts"]:
+        if acc["name"] == data["active"]:
+            return acc
+    return None
+
 def get_active_account():
     data = load_config()
     # Check for a linked account first
@@ -26,10 +32,8 @@ def get_active_account():
             if acc["name"] == linked_account:
                 return acc
 
-    for acc in data["accounts"]:
-        if acc["name"] == data["active"]:
-            return acc
-    return None
+    # Fallback to global active account
+    return get_active_account_from_global_config()
 
 def get_linked_account():
     if os.path.exists(PROJECT_CONFIG_FILE):

@@ -23,15 +23,14 @@ class TestLinkCommand(unittest.TestCase):
                 {
                     "name": "test_account",
                     "username": "test_user",
+                    "gpg_key_id": "GPG_KEY_1",
+                    "ssh_key_path": "~/.ssh/id_rsa_test"
                 }
             ],
             "active": "test_account"
         }
         with open(self.config_path, "w") as f:
             json.dump(dummy_config, f, indent=2)
-        # Mock keyring.set_password as it's called by add_account
-        with patch('keyring.set_password'):
-            pass # Do nothing, just prevent actual keyring interaction
 
     def tearDown(self):
         os.chdir("..")
@@ -54,6 +53,16 @@ class TestLinkCommand(unittest.TestCase):
         with open(".ghmulti", "r") as f:
             project_config = json.load(f)
         self.assertEqual(project_config["account"], "test_account")
+
+        # Check local git config
+        local_user = subprocess.check_output(["git", "config", "--local", "user.name"]).decode().strip()
+        self.assertEqual(local_user, "test_user")
+        local_email = subprocess.check_output(["git", "config", "--local", "user.email"]).decode().strip()
+        self.assertEqual(local_email, "test_user@users.noreply.github.com")
+        local_gpg = subprocess.check_output(["git", "config", "--local", "user.signingkey"]).decode().strip()
+        self.assertEqual(local_gpg, "GPG_KEY_1")
+        local_ssh = subprocess.check_output(["git", "config", "--local", "core.sshCommand"]).decode().strip()
+        self.assertEqual(local_ssh, f"ssh -i {os.path.expanduser('~/.ssh/id_rsa_test')}")
 
     def test_link_fails_with_nonexistent_account(self):
         subprocess.run(["git", "init"], capture_output=True)

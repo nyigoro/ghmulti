@@ -4,13 +4,6 @@ import click
 import os
 from cli.config import get_active_account, get_token, get_linked_account
 
-def run(cmd, env=None, shell=False):
-    print(f"🛠️  Running: {cmd}")
-    result = subprocess.run(cmd, shell=shell, env=env)
-    if result.returncode != 0:
-        print("❌ Command failed.")
-        sys.exit(result.returncode)
-
 @click.command(name="push")
 @click.option('--branch', default='main', help='Branch name to push (default: main)')
 @click.option('--message', help='Commit message if staging and committing before push')
@@ -46,20 +39,24 @@ def push(branch, message, remote):
 
     click.echo(f"📤 Pushing as '{username}' to remote '{actual_remote}' on branch '{branch}'")
 
-    if message:
-        click.echo("📝 Committing changes...")
-        run(["git", "add", "."])
-        run(["git", "commit", "-m", message])
+    try:
+        if message:
+            click.echo("📝 Committing changes...")
+            subprocess.run(["git", "add", "."], check=True)
+            subprocess.run(["git", "commit", "-m", message], check=True)
 
-    # Use GIT_ASKPASS for token authentication
-    env = os.environ.copy()
-    if token:
-        env["GIT_ASKPASS"] = "echo"
-        env["GIT_USERNAME"] = username
-        env["GIT_PASSWORD"] = token
+        # Use GIT_ASKPASS for token authentication
+        env = os.environ.copy()
+        if token:
+            env["GIT_ASKPASS"] = "echo"
+            env["GIT_USERNAME"] = username
+            env["GIT_PASSWORD"] = token
 
-    run(["git", "push", actual_remote, branch], env=env)
-    click.echo("✅ Push successful.")
+        subprocess.run(["git", "push", actual_remote, branch], check=True, env=env)
+        click.echo("✅ Push successful.")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"❌ Git command failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     push()
