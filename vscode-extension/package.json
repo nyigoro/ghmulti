@@ -3,6 +3,7 @@
     "displayName": "ghmulti-vscode",
     "description": "VS Code extension for ghmulti",
     "version": "0.0.1",
+    "publisher": "nyigoro",
     "engines": {
         "vscode": "^1.87.0"
     },
