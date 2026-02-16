@@ -29,14 +29,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onStartupFinished",
-        "onCommand:ghmulti-vscode.manage",
-        "onCommand:ghmulti-vscode.addAccount",
-        "onCommand:ghmulti-vscode.switchAccount",
-        "onCommand:ghmulti-vscode.linkAccount",
-        "onCommand:ghmulti-vscode.unlinkAccount",
-        "onCommand:ghmulti-vscode.showStatus",
-        "onCommand:ghmulti-vscode.runDoctor"
+        "onStartupFinished"
     ],
     "main": "./out/extension.js",
     "contributes": {
