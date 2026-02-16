@@ -1,2 +1,4 @@
-keyring
-inquirer
+click>=8.1
+inquirer>=3.4
+keyring>=25.0
+requests>=2.31

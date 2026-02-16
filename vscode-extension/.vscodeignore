@@ -1,0 +1,10 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+**/*.ts
+**/*.map
+out/test/**
+tsconfig.json
+eslint.config.mjs
+package-lock.json

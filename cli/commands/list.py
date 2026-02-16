@@ -1,29 +1,32 @@
-import os
 import json
 import click
 
-CONFIG_PATH = os.path.expanduser("~/.ghmulti.json")
+from cli.config import load_config
+
 
 @click.command(name="list")
-def list_accounts():
+@click.option("--json", "json_output", is_flag=True, help="Output machine-readable JSON.")
+def list_accounts(json_output):
     """List all configured GitHub accounts."""
-    if not os.path.exists(CONFIG_PATH):
-        print("❌ No config file found. Run `add` to add accounts.")
-        return
-
-    with open(CONFIG_PATH, "r") as f:
-        config = json.load(f)
-
+    config = load_config()
     accounts = config.get("accounts", [])
     active = config.get("active")
 
-    if not accounts:
-        print("ℹ️  No accounts configured.")
+    if json_output:
+        payload = {
+            "accounts": accounts,
+            "active": active
+        }
+        click.echo(json.dumps(payload, indent=2))
         return
 
-    print("📘 Configured GitHub accounts:")
+    if not accounts:
+        click.echo("ℹ️  No accounts configured.")
+        return
+
+    click.echo("📘 Configured GitHub accounts:")
     for acc in accounts:
         name = acc.get("name", "<no-name>")
         username = acc.get("username", "<no-username>")
         marker = "👉" if name == active else "  "
-        print(f"{marker} {name} ({username})")
+        click.echo(f"{marker} {name} ({username})")

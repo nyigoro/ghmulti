@@ -1,13 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ghmulti"
 version = "0.1.0"
 description = "Manage multiple GitHub accounts"
 authors = [{ name = "nyigoro", email = "nyigoro@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 dependencies = [
-    "click"
+    "click>=8.1",
+    "inquirer>=3.4",
+    "keyring>=25.0",
+    "requests>=2.31"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0"
 ]
 
 [project.scripts]
-ghmulti = "ghmulti.__main__:cli"
+ghmulti = "cli.commands.__main__:cli"

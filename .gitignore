@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Local temp/test artifacts
+temp_*/
+tmp/
+
+# VS Code and editor
+.vscode/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Extension workspace artifacts
+vscode-extension/node_modules/
+vscode-extension/.vscode-test/
+vscode-extension/*.vsix
+vscode-extension/out/test/
+
