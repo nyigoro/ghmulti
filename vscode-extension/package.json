@@ -2,7 +2,7 @@
     "name": "ghmulti-vscode",
     "displayName": "ghmulti",
     "description": "Switch GitHub identities in VS Code using ghmulti.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "nyigoro",
     "license": "MIT",
     "engines": {
@@ -25,7 +25,7 @@
         "ghmulti"
     ],
     "categories": [
-        "Source Control",
+        "SCM Providers",
         "Other"
     ],
     "activationEvents": [
