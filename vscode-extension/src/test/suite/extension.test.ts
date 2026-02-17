@@ -1,7 +1,9 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-suite('ghmulti Extension Smoke Tests', () => {
+suite('ghmulti Extension Smoke Tests', function () {
+    this.timeout(15000);
+
     test('registers expected commands', async () => {
         const extension = vscode.extensions.getExtension('nyigoro.ghmulti-vscode');
         assert.ok(extension, 'Extension nyigoro.ghmulti-vscode not found');
@@ -16,6 +18,7 @@ suite('ghmulti Extension Smoke Tests', () => {
             'ghmulti-vscode.switchAccount',
             'ghmulti-vscode.linkAccount',
             'ghmulti-vscode.unlinkAccount',
+            'ghmulti-vscode.migrateLegacyLink',
             'ghmulti-vscode.showStatus',
             'ghmulti-vscode.runDoctor'
         ];

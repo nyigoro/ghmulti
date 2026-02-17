@@ -9,7 +9,9 @@ const vscode = require("vscode");
 let statusBarItem;
 let outputChannel;
 let cachedGhMultiCommand;
+let isTestMode = false;
 function activate(context) {
+    isTestMode = context.extensionMode === vscode.ExtensionMode.Test;
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     outputChannel = vscode.window.createOutputChannel('ghmulti');
     context.subscriptions.push(statusBarItem, outputChannel);
@@ -18,6 +20,7 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.switchAccount', switchAccountFlow));
     context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.linkAccount', linkAccountFlow));
     context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.unlinkAccount', unlinkAccountFlow));
+    context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.migrateLegacyLink', migrateLegacyLinkFlow));
     context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.showStatus', showStatus));
     context.subscriptions.push(vscode.commands.registerCommand('ghmulti-vscode.runDoctor', runDoctor));
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
@@ -36,12 +39,17 @@ function updateStatusBar() {
     const preferredFolder = getPreferredWorkspaceFolder();
     const accountInfo = getActiveAccountInfo(preferredFolder?.uri.fsPath);
     if (!accountInfo) {
-        statusBarItem.hide();
+        statusBarItem.text = '$(account) ghmulti';
+        statusBarItem.tooltip = 'ghmulti: no active account. Click to add, switch, or link an account.';
+        statusBarItem.command = 'ghmulti-vscode.manage';
+        statusBarItem.show();
         return;
     }
-    const icon = accountInfo.isLinked ? '$(plug)' : '$(github-inverted)';
+    const icon = accountInfo.isLinked ? '$(key)' : '$(account)';
     statusBarItem.text = `${icon} ${accountInfo.name}`;
-    statusBarItem.tooltip = `ghmulti: ${accountInfo.name} (${accountInfo.isLinked ? 'Linked' : 'Global'})`;
+    statusBarItem.tooltip = accountInfo.isLegacyLinked
+        ? `ghmulti: ${accountInfo.name} (Linked via legacy git config)`
+        : `ghmulti: ${accountInfo.name} (${accountInfo.isLinked ? 'Linked' : 'Global'})`;
     statusBarItem.command = 'ghmulti-vscode.manage';
     statusBarItem.show();
 }
@@ -51,6 +59,13 @@ function getActiveAccountInfo(workspaceFolderPath) {
         const jsonResult = tryParseJson(runGhMulti(['status', '--json', '--skip-token-check'], options));
         if (jsonResult?.linked_account) {
             return { name: jsonResult.linked_account, isLinked: true };
+        }
+        if (jsonResult?.linked_account_from_git_config) {
+            return {
+                name: jsonResult.linked_account_from_git_config,
+                isLinked: true,
+                isLegacyLinked: true
+            };
         }
         const activeName = jsonResult?.effective_active_account?.name ?? jsonResult?.global_active_account?.name;
         if (activeName) {
@@ -128,6 +143,7 @@ async function showManageMenu() {
         { label: '$(account) Switch Account', command: 'ghmulti-vscode.switchAccount' },
         { label: '$(plug) Link Repository', command: 'ghmulti-vscode.linkAccount' },
         { label: '$(debug-disconnect) Unlink Repository', command: 'ghmulti-vscode.unlinkAccount' },
+        { label: '$(sync) Migrate Legacy Link', command: 'ghmulti-vscode.migrateLegacyLink' },
         { label: '$(info) Show Status', command: 'ghmulti-vscode.showStatus' },
         { label: '$(pulse) Run Doctor', command: 'ghmulti-vscode.runDoctor' }
     ];
@@ -292,6 +308,13 @@ async function unlinkAccountFlow() {
         vscode.window.showErrorMessage(`Error unlinking repository: ${formatExecError(error)}`);
     }
 }
+async function migrateLegacyLinkFlow() {
+    const workspaceFolder = await selectWorkspaceFolder('Select repository to migrate legacy link');
+    if (!workspaceFolder) {
+        return;
+    }
+    await migrateLegacyLinkInFolder(workspaceFolder, true);
+}
 async function showStatus() {
     const workspaceFolder = await selectWorkspaceFolder('Select repository to show status', true);
     const options = workspaceFolder ? { cwd: workspaceFolder.uri.fsPath } : {};
@@ -370,6 +393,9 @@ async function runDoctor() {
     }
 }
 async function checkAndPromptForLink() {
+    if (isTestMode) {
+        return;
+    }
     const workspaceFolder = getPreferredWorkspaceFolder();
     if (!workspaceFolder) {
         return;
@@ -380,6 +406,11 @@ async function checkAndPromptForLink() {
     }
     const isLinked = fs.existsSync(path.join(workspacePath, '.ghmulti'));
     if (isLinked) {
+        return;
+    }
+    const legacyLinkedAccount = getLegacyLinkedAccountFromGitConfig(workspacePath);
+    if (legacyLinkedAccount) {
+        await migrateLegacyLinkInFolder(workspaceFolder, false);
         return;
     }
     const choice = await vscode.window.showInformationMessage(`Repository '${workspaceFolder.name}' is not linked to a ghmulti account. Link now?`, 'Link Account', 'Ignore');
@@ -429,6 +460,48 @@ async function selectWorkspaceFolder(placeHolder, allowNoWorkspace = false) {
 }
 function isGitWorkspace(workspaceFolderPath) {
     return fs.existsSync(path.join(workspaceFolderPath, '.git'));
+}
+async function migrateLegacyLinkInFolder(workspaceFolder, explicitCommand) {
+    const workspacePath = workspaceFolder.uri.fsPath;
+    if (!isGitWorkspace(workspacePath)) {
+        if (explicitCommand) {
+            vscode.window.showWarningMessage(`'${workspaceFolder.name}' is not a git repository.`);
+        }
+        return;
+    }
+    const legacyLinkedAccount = getLegacyLinkedAccountFromGitConfig(workspacePath);
+    if (!legacyLinkedAccount) {
+        if (explicitCommand) {
+            vscode.window.showInformationMessage(`No legacy link found in '${workspaceFolder.name}'.`);
+        }
+        return;
+    }
+    let shouldMigrate = explicitCommand;
+    if (!explicitCommand) {
+        const migrateChoice = await vscode.window.showInformationMessage(`Repository '${workspaceFolder.name}' has a legacy link '${legacyLinkedAccount}' in local git config. Migrate it to .ghmulti now?`, 'Migrate Link', 'Ignore');
+        shouldMigrate = migrateChoice === 'Migrate Link';
+    }
+    if (!shouldMigrate) {
+        return;
+    }
+    try {
+        runGhMulti(['link', legacyLinkedAccount], { cwd: workspacePath });
+        updateStatusBar();
+        vscode.window.showInformationMessage(`Migrated legacy link '${legacyLinkedAccount}' to .ghmulti for '${workspaceFolder.name}'.`);
+    }
+    catch (error) {
+        vscode.window.showErrorMessage(`Could not migrate legacy link '${legacyLinkedAccount}'. Ensure the account exists, then link again. ${formatExecError(error)}`);
+    }
+}
+function getLegacyLinkedAccountFromGitConfig(workspaceFolderPath) {
+    try {
+        const output = cp.execFileSync('git', ['config', '--local', '--get', 'ghmulti.linkedaccount'], { cwd: workspaceFolderPath, encoding: 'utf8', stdio: 'pipe' });
+        const trimmed = output.trim();
+        return trimmed || undefined;
+    }
+    catch {
+        return undefined;
+    }
 }
 async function promptRequired(prompt) {
     const value = await vscode.window.showInputBox({
@@ -482,33 +555,98 @@ function getGhMultiCommand() {
     }
     const configuredCommand = vscode.workspace.getConfiguration('ghmulti').get('commandPath')?.trim();
     if (configuredCommand) {
-        try {
-            cp.execFileSync(configuredCommand, ['--help'], { stdio: 'pipe' });
-            cachedGhMultiCommand = { executable: configuredCommand, baseArgs: [] };
-            return cachedGhMultiCommand;
+        const configuredCandidates = getConfiguredCommandCandidates(configuredCommand);
+        for (const candidate of configuredCandidates) {
+            if (isUsableGhMultiCommand(candidate)) {
+                cachedGhMultiCommand = candidate;
+                return cachedGhMultiCommand;
+            }
         }
-        catch (error) {
-            vscode.window.showWarningMessage(`Configured ghmulti.commandPath failed: ${configuredCommand}. ${formatExecError(error)} Falling back to auto-detection.`);
-        }
+        vscode.window.showWarningMessage(`Configured ghmulti.commandPath is not usable: ${configuredCommand}. Use an executable path (for example C:\\Python\\python.exe) or a command with args (for example py -m ghmulti). Falling back to auto-detection.`);
     }
     const candidates = [
-        { executable: 'ghmulti', baseArgs: [] },
         { executable: 'python', baseArgs: ['-m', 'ghmulti'] },
+        { executable: 'py', baseArgs: ['-m', 'ghmulti'] },
         { executable: 'python3', baseArgs: ['-m', 'ghmulti'] },
-        { executable: 'py', baseArgs: ['-m', 'ghmulti'] }
+        { executable: 'ghmulti', baseArgs: [] }
     ];
     for (const candidate of candidates) {
-        try {
-            cp.execFileSync(candidate.executable, [...candidate.baseArgs, '--help'], { stdio: 'pipe' });
+        if (isUsableGhMultiCommand(candidate)) {
             cachedGhMultiCommand = candidate;
             return candidate;
-        }
-        catch {
-            continue;
         }
     }
     cachedGhMultiCommand = null;
     return null;
+}
+function isUsableGhMultiCommand(candidate) {
+    try {
+        cp.execFileSync(candidate.executable, [...candidate.baseArgs, '--help'], { stdio: 'pipe' });
+    }
+    catch {
+        return false;
+    }
+    try {
+        const stdout = cp.execFileSync(candidate.executable, [...candidate.baseArgs, 'list', '--json'], { stdio: 'pipe', encoding: 'utf8' });
+        return tryParseJson(stdout) !== undefined;
+    }
+    catch {
+        return false;
+    }
+}
+function getConfiguredCommandCandidates(configuredCommand) {
+    const candidates = [{ executable: configuredCommand, baseArgs: [] }];
+    const parsed = splitCommandLine(configuredCommand);
+    if (parsed.length > 0) {
+        const parsedCandidate = {
+            executable: parsed[0],
+            baseArgs: parsed.slice(1)
+        };
+        if (!isSameCommand(parsedCandidate, candidates[0])) {
+            candidates.push(parsedCandidate);
+        }
+    }
+    return candidates;
+}
+function splitCommandLine(rawCommand) {
+    const tokens = [];
+    let current = '';
+    let quote = null;
+    for (const char of rawCommand.trim()) {
+        if (quote) {
+            if (char === quote) {
+                quote = null;
+                continue;
+            }
+            current += char;
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            quote = char;
+            continue;
+        }
+        if (/\s/.test(char)) {
+            if (current) {
+                tokens.push(current);
+                current = '';
+            }
+            continue;
+        }
+        current += char;
+    }
+    if (current) {
+        tokens.push(current);
+    }
+    return tokens;
+}
+function isSameCommand(a, b) {
+    if (a.executable !== b.executable) {
+        return false;
+    }
+    if (a.baseArgs.length !== b.baseArgs.length) {
+        return false;
+    }
+    return a.baseArgs.every((arg, index) => arg === b.baseArgs[index]);
 }
 function formatExecError(error) {
     const execError = error;

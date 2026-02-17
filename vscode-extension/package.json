@@ -2,7 +2,7 @@
     "name": "ghmulti-vscode",
     "displayName": "ghmulti",
     "description": "Switch GitHub identities in VS Code using ghmulti.",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "publisher": "nyigoro",
     "license": "MIT",
     "engines": {
@@ -55,6 +55,10 @@
                 "title": "ghmulti: Unlink Repository Account"
             },
             {
+                "command": "ghmulti-vscode.migrateLegacyLink",
+                "title": "ghmulti: Migrate Legacy Link"
+            },
+            {
                 "command": "ghmulti-vscode.showStatus",
                 "title": "ghmulti: Show Status"
             },
@@ -69,7 +73,7 @@
                 "ghmulti.commandPath": {
                     "type": "string",
                     "default": "",
-                    "description": "Optional absolute path to the ghmulti executable. Leave empty for auto-detection."
+                    "description": "Optional ghmulti command override. Use an executable path or a command with arguments (e.g. py -m ghmulti). Leave empty for auto-detection."
                 }
             }
         }
